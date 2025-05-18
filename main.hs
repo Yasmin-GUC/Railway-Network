@@ -1,5 +1,6 @@
 import Test.HUnit
 import System.Random
+import Data.List (elemIndex)
 data PriorityQueue = PQ PQNode PriorityQueue | Empty deriving (Show, Eq)
 data PQNode = Node Int Int deriving (Show, Eq)
 
@@ -49,6 +50,85 @@ initializeSourceH n m current
     | current == m && current /= n = PQ (Node m 9999) Empty 
 	| current == n = initializeSourceH n m (current + 1)
     | otherwise = Empty
+
+--computeShortestPathCost and computeShortestPathCostHelper are in test
+computeShortestPathCost :: Int -> [[Int]] -> PriorityQueue -> Int
+computeShortestPathCost finalNode network pq = computeShortestPathCostHelper (extractid (extractPQNode pq)) finalNode network pq (intializeUnvisitedList (length network) 1) 0
+
+computeShortestPathCostHelper :: Int -> Int -> [[Int]] -> PriorityQueue -> [Int] -> Int -> Int
+computeShortestPathCostHelper currentNode finalNode network (PQ (Node id key) pq) unvisitedNodes flag
+    | currentNode == finalNode = outputDesiredNode (PQ (Node id key) pq) finalNode
+    | currentNode /= finalNode && flag == 0 = computeShortestPathCostHelper (getMinNode x) finalNode network (updatePQflag0 pq x 1) (updateUnvisitedNodes x currentNode (getMinNode x) 1) 1 
+    | currentNode /= finalNode && flag == 1 = computeShortestPathCostHelper (getMinNode x) finalNode network (updatePQflag1 pq pq (addVisitedNodes unvisitedNodes 0) x currentNode) (updateUnvisitedNodes x currentNode (getMinNode x) 1) 1 
+    | otherwise = -1
+	where x = (network!!(currentNode-1))
+
+outputDesiredNode :: PriorityQueue -> Int -> Int
+outputDesiredNode Empty finalNode = -1
+outputDesiredNode (PQ (Node id key) pq) finalNode
+	|extractid (extractPQNode (PQ (Node id key) pq)) == (finalNode) = extractKey(extractPQNode (PQ (Node id key) pq))
+	|otherwise = (outputDesiredNode pq finalNode) where node = (Node id key)
+
+
+--updatePQflag0 to be implemented
+
+updatePQflag0 :: PriorityQueue -> [Int] -> Int -> PriorityQueue
+updatePQflag0 pq (h:t) counter = updatePQflag0 (dequeueAndUpdate counter h pq) t (counter+1)
+updatePQflag0 pq [] _ = pq
+
+--updatePQflag1 to be implemented
+
+updatePQflag1 :: PriorityQueue -> PriorityQueue -> Int -> [Int] -> Int -> PriorityQueue
+updatePQflag1 Empty pq _ _ _ = pq 
+updatePQflag1 (PQ node rest) pq pastCost edges currentEdge
+    | x /= 0 && (pastCost + x) < outputDesiredNode pq currentEdge =
+        updatePQflag1 rest (dequeueAndUpdate currentEdge (pastCost + x) pq) pastCost edges (currentEdge + 1)
+    | otherwise =
+        updatePQflag1 rest pq pastCost edges (currentEdge + 1)
+	where x = (edges !! (currentEdge - 1)) 
+
+addVisitedNodes :: [Int] -> Int -> Int
+addVisitedNodes [] sum = sum
+addVisitedNodes (h:t) sum
+	|h == -1 = addVisitedNodes t sum
+	|otherwise = addVisitedNodes t (sum+h)
+
+
+getMinNode list = getIndex(getMinEdge list 9999) list 1
+
+getIndex target (h:t) index 
+	|h == target = index
+	|otherwise = getIndex target t (index + 1) 	
+getIndex target [] index = -1	
+
+getMinEdge :: [Int] -> Int-> Int 
+getMinEdge [] min = min
+getMinEdge (h:t) min
+    |h < min && h /= 0 = getMinEdge t h
+    |otherwise = getMinEdge t min
+
+updateUnvisitedNodes :: [Int] -> Int -> Int -> Int -> [Int]
+updateUnvisitedNodes (h:t) node key counter
+	|counter < node = h:updateUnvisitedNodes t node key (counter+1)
+	|counter == node = key : t
+	|otherwise = h:t
+
+intializeUnvisitedList :: Int -> Int -> [Int]
+intializeUnvisitedList len counter 
+	|(counter-1) < len = [-1] ++ intializeUnvisitedList len (counter+1)
+	|otherwise = []
+
+dequeueAndUpdate :: Int -> Int -> PriorityQueue -> PriorityQueue
+dequeueAndUpdate target newKey Empty = Empty
+dequeueAndUpdate target newKey (PQ (Node id key) pq)
+	|extractid (extractPQNode (PQ (Node id key) pq)) == (target) && key > newKey && key /= 0 = PQ (Node id newKey) pq
+	|otherwise = PQ node (dequeueAndUpdate target newKey pq ) where node = (Node id key)
+
+
+extractPQNode (PQ node pq) = node
+extractKey(Node id key) = key
+extractid(Node id key) = id
+
 -----------------------------------------------------------------------TESTS--------------------------------------------------------------------------------
 
 -----------------Begin railsNetwork Tests--------------------------
@@ -66,13 +146,10 @@ test5 = TestCase(assertEqual "public5" [[0,6,8,3,5,9,5,7,6,7,9,6,4,3,8,7,0,5,4,4
 
 -----------------End railsNetwork Tests--------------------------
 
+
 -----------------Begin pullLever Tests---------------------------
 
-test6 = TestCase(assertEqual "public6" [[0,1,0,9,5],
-										[3,0,7,9,8],
-										[9,6,0,0,7],
-										[6,7,1,0,0],
-										[9,5,3,2,0]] (pullLever 98765 4 5 (railsNetwork 5 12345)))
+test6 = TestCase(assertEqual "public6" [[0,1,0,9,5],[3,0,7,9,8],[9,6,0,0,7],[6,7,1,0,0],[9,5,3,2,0]] (pullLever 98765 4 5 (railsNetwork 5 12345)))
 
 test7 = TestCase(assertEqual "public7" [[0,9,6,9,0,4,9,8,8,8],[1,0,6,9,5,4,9,7,9,9],[3,9,0,3,8,4,8,5,0,6],[1,9,0,0,0,3,3,3,8,7],[5,2,8,2,0,0,2,4,2,5],[1,6,0,6,9,0,0,5,2,6],[7,4,0,5,8,9,0,9,4,7],[5,9,6,9,4,2,4,0,8,2],[5,4,8,7,1,8,0,5,0,2],[2,1,1,3,7,4,8,1,6,0]] (pullLever 8264 1 7 (railsNetwork 10 9384573)))
 
@@ -83,6 +160,7 @@ test9 = TestCase(assertEqual "public9" [[0,1,4,7,4,0,6,1,2,3,4,1,4,1,4,0,7,4,7,6
 test10 = TestCase(assertEqual "public10" [[0,6,8,3,5,9,5,7,6,7,9,6,4,3,8,7,0,5,4,4,5,7,0,5,8],[5,0,1,1,9,9,6,1,6,7,6,3,7,3,3,8,7,9,2,5,5,1,9,1,8],[0,3,0,4,5,4,3,6,6,3,1,1,3,5,1,9,7,0,5,7,7,1,4,9,2],[9,5,1,0,9,6,1,0,2,9,1,8,3,8,3,2,6,0,8,6,9,8,9,9,6],[6,5,8,1,0,4,2,3,7,5,4,0,7,8,3,6,1,0,6,3,5,3,9,3,5],[5,5,5,1,1,0,4,7,3,3,3,6,6,0,5,7,4,2,7,7,5,5,2,6,6],[0,9,1,2,7,3,0,4,0,6,5,5,2,6,8,4,3,8,1,0,4,3,0,7,7],[6,2,0,7,5,9,7,0,3,8,9,5,6,1,4,4,2,2,6,0,4,2,0,2,2],[2,3,9,1,6,2,4,2,0,2,2,3,0,8,6,2,3,9,0,1,4,7,7,5,9],[1,6,9,8,0,5,6,8,5,0,3,5,0,9,1,6,2,2,9,5,9,7,5,8,1],[8,4,7,3,7,4,2,3,0,9,0,4,8,3,2,3,3,8,5,4,7,2,1,8,0],[4,2,5,1,8,0,3,3,6,9,3,0,9,8,9,0,0,3,6,9,6,6,9,6,0],[9,0,3,7,1,6,3,6,4,5,9,2,0,8,2,8,0,5,9,9,1,0,3,6,8],[4,3,2,3,4,3,2,9,6,2,4,5,1,0,7,7,2,6,3,1,5,3,0,0,0],[6,0,5,3,2,1,0,1,0,6,3,7,7,7,0,6,1,6,8,7,1,0,0,1,9],[4,7,5,1,7,2,1,8,0,5,6,5,4,1,7,0,9,0,2,5,5,7,9,8,2],[6,2,0,1,9,4,2,2,8,6,1,4,1,5,4,0,0,4,4,7,5,8,4,1,0],[2,7,2,1,6,7,2,1,2,0,3,4,6,5,6,1,9,0,1,5,2,9,4,9,8],[0,9,0,3,6,5,9,2,7,9,0,6,6,1,9,5,8,9,0,7,7,8,1,5,8],[6,5,5,5,9,9,4,4,1,2,7,9,7,2,3,2,9,6,7,0,6,1,2,6,6],[3,5,8,4,1,8,7,7,6,8,8,3,7,5,8,8,7,6,3,4,0,5,4,8,7],[5,5,3,6,4,2,8,0,0,9,2,9,0,0,6,5,4,6,3,4,5,0,2,9,8],[7,8,7,7,4,1,4,8,1,0,3,6,3,3,9,2,2,8,1,3,2,6,0,8,3],[8,6,7,2,3,6,2,8,6,4,7,9,8,2,3,2,6,4,3,2,8,1,8,0,3],[5,6,5,4,1,4,1,2,6,8,0,7,7,1,4,6,2,5,3,0,8,0,6,5,0]] (pullLever 7278957 3 9 (railsNetwork 25 92741563)))
 
 -----------------End pullLever Tests--------------------------
+
 
 -----------------Begin initializeSource Tests-----------------
 
@@ -98,5 +176,20 @@ test15 = TestCase(assertEqual "public15" (PQ (Node 25 0) (PQ (Node 1 9999) (PQ (
 
 -----------------End initializeSource Tests-------------------
 
+-------------Begin computeShortestPathCost Tests--------------
 
-tests = TestList [TestLabel "test1" test1, TestLabel "test2" test2, TestLabel "test3" test3, TestLabel "test4" test4, TestLabel "test5" test5, TestLabel "test6" test6, TestLabel "test7" test7, TestLabel "test8" test8, TestLabel "test9" test9, TestLabel "test10" test10, TestLabel "test11" test11, TestLabel "test12" test12, TestLabel "test13" test13, TestLabel "test14" test14, TestLabel "test15" test15]
+test16 = TestCase(assertEqual "public16" 0 (computeShortestPathCost 4 (railsNetwork 5 12345) (initializeSource 4 (railsNetwork 5 12345))))
+
+test17 = TestCase(assertEqual "public17" 6 (computeShortestPathCost 9 (railsNetwork 10 9384573) (initializeSource 1 (railsNetwork 10 9384573))))
+
+test18 = TestCase(assertEqual "public18" 4 (computeShortestPathCost 15 (railsNetwork 15 347) (initializeSource 6 (railsNetwork 15 347))))
+
+test19 = TestCase(assertEqual "public19" 3 (computeShortestPathCost 2 (railsNetwork 20 4588544) (initializeSource 15 (railsNetwork 20 4588544))))
+
+test20 = TestCase(assertEqual "public20" 2 (computeShortestPathCost 20 (railsNetwork 25 92741563) (initializeSource 25 (railsNetwork 25 92741563))))
+
+--------------End computeShortestPathCost Tests---------------
+
+tests = TestList [TestLabel "test1" test1, TestLabel "test2" test2, TestLabel "test3" test3, TestLabel "test4" test4, TestLabel "test5" test5, TestLabel "test6" test6, TestLabel "test7" test7, TestLabel "test8" test8, TestLabel "test9" test9, TestLabel "test10" test10, TestLabel "test11" test11, TestLabel "test12" test12, TestLabel "test13" test13, TestLabel "test14" test14, TestLabel "test15" test15, TestLabel "test16" test16, TestLabel "test17" test17, TestLabel "test18" test18, TestLabel "test19" test19, TestLabel "test20" test20]
+
+
